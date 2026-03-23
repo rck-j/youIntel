@@ -10,6 +10,8 @@ src/yt_transcripts/
   models/
   services/
   cli.py
+config/
+  channels.yaml
 ```
 
 ## Install
@@ -36,7 +38,7 @@ Enable Whisper fallback explicitly:
 PYTHONPATH=src python -m yt_transcripts.cli single "https://www.youtube.com/watch?v=_XOV3I0EVBA" --enable-whisper-fallback --whisper-model tiny
 ```
 
-## Batch latest 5 videos
+## Batch latest 5 videos (explicit channels)
 
 ```bash
 PYTHONPATH=src python -m yt_transcripts.cli batch \
@@ -45,5 +47,28 @@ PYTHONPATH=src python -m yt_transcripts.cli batch \
   --max-videos 5 \
   --output-dir outputs
 ```
+
+## Batch latest 5 videos (YAML channel config)
+
+Create/update `config/channels.yaml`:
+
+```yaml
+version: 1
+channels:
+  - name: Google for Developers
+    channel_id: UC_x5XG1OV2P6uZZ5FSM9Ttw
+    enabled: true
+```
+
+Run configured channels:
+
+```bash
+PYTHONPATH=src python -m yt_transcripts.cli batch-from-config \
+  --channels-config config/channels.yaml \
+  --max-videos 5 \
+  --output-dir outputs
+```
+
+This command uses `ChannelService` to load channels and `LatestVideosTranscriptService` to orchestrate retrieval for future extension points (processing, summarization, and persistence).
 
 This writes one JSON file per video plus `batch_summary.json`.
