@@ -1,0 +1,16 @@
+version: 1
+channels:
+  - name: Google for Developers
+    channel_id: UC_x5XG1OV2P6uZZ5FSM9Ttw
+    enabled: true
+    tags: [technology, developer]
+
+  - name: Marques Brownlee
+    channel_id: UCBJycsmduvYEL83R_U4JriQ
+    enabled: true
+    tags: [technology, consumer]
+
+  - name: Example Disabled Channel
+    channel_id: UCXXXXXXXXXXXXXXXXXXXXXX
+    enabled: false
+    tags: [example]

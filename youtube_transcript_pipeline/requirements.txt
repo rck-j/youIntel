@@ -3,3 +3,5 @@ youtube-transcript-api
 yt-dlp
 google-api-python-client
 openai-whisper
+
+PyYAML>=6.0.0,<7.0.0
