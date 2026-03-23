@@ -57,3 +57,29 @@ class YouTubeDataClient:
                 )
             )
         return videos
+
+    def find_channel_by_name(self, channel_name: str) -> Optional[dict[str, str]]:
+        search_response = (
+            self._service.search()
+            .list(
+                part="snippet",
+                q=channel_name,
+                type="channel",
+                maxResults=1,
+            )
+            .execute()
+        )
+        items = search_response.get("items", [])
+        if not items:
+            return None
+
+        snippet = items[0].get("snippet", {})
+        id_payload = items[0].get("id", {})
+        channel_id = id_payload.get("channelId")
+        if not channel_id:
+            return None
+
+        return {
+            "name": snippet.get("channelTitle") or channel_name,
+            "channel_id": channel_id,
+        }

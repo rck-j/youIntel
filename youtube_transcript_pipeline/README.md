@@ -38,6 +38,28 @@ Enable Whisper fallback explicitly:
 PYTHONPATH=src python -m yt_transcripts.cli single "https://www.youtube.com/watch?v=_XOV3I0EVBA" --enable-whisper-fallback --whisper-model tiny
 ```
 
+
+## Build `channels.yaml` from channel names
+
+You can generate `config/channels.yaml` directly from a list of channel names:
+
+```bash
+PYTHONPATH=src python scripts/build_channels_yaml.py \
+  --channel-name "Google for Developers" \
+  --channel-name "Marques Brownlee" \
+  --output config/channels.yaml
+```
+
+Or pass a text file with one channel name per line:
+
+```bash
+PYTHONPATH=src python scripts/build_channels_yaml.py \
+  --input-file channel_names.txt \
+  --output config/channels.yaml
+```
+
+The command prints unresolved channel names so you can review ambiguous or missing matches.
+
 ## Batch latest 5 videos (explicit channels)
 
 ```bash
