@@ -1,0 +1,8 @@
+google-api-python-client>=2.120.0,<3.0.0
+youtube-transcript-api>=0.6.2,<1.0.0
+python-dotenv>=1.0.1,<2.0.0
+python-dotenv
+youtube-transcript-api
+yt-dlp
+openai-whisper
+PyYAML>=6.0.0,<7.0.0
