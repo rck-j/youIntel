@@ -12,6 +12,8 @@ src/yt_transcripts/
   cli.py
 config/
   channels.yaml
+prompts/
+  topic_perspective_prompt.txt
 ```
 
 ## Install
@@ -103,3 +105,21 @@ PYTHONPATH=src python -m yt_transcripts.cli batch-from-config \
 This command uses `ChannelService` to load channels and `LatestVideosTranscriptService` to orchestrate retrieval for future extension points (processing, summarization, and persistence).
 
 This writes one JSON file per video plus `batch_summary.json`.
+
+## Analyze downloaded transcripts with GPT-5
+
+Set `OPENAI_API_KEY` in your environment, then run:
+
+```bash
+PYTHONPATH=src python -m yt_transcripts.cli analyze-topics \
+  --input-dir /outputs \
+  --model gpt-5 \
+  --prompt-file topic_perspective_prompt.txt \
+  --output-file /outputs/topic_perspectives_aggregate.json
+```
+
+This command:
+- Loads prompts from `prompts/`
+- Analyzes each transcript JSON inside `/outputs`
+- Detects topics and per-topic channel perspectives
+- Aggregates topics across channels and attributes which channels supplied each perspective

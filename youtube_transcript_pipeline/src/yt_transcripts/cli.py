@@ -49,6 +49,15 @@ def build_parser() -> argparse.ArgumentParser:
     batch_config.add_argument("--whisper-language", default=os.getenv("WHISPER_LANGUAGE"))
     batch_config.add_argument("--output-dir", default="outputs")
 
+    analyze = subparsers.add_parser(
+        "analyze-topics",
+        help="Analyze downloaded transcripts and aggregate topics by channel perspective",
+    )
+    analyze.add_argument("--input-dir", default="/outputs")
+    analyze.add_argument("--model", default=os.getenv("OPENAI_ANALYSIS_MODEL", "gpt-5"))
+    analyze.add_argument("--prompt-file", default="topic_perspective_prompt.txt")
+    analyze.add_argument("--output-file", default="/outputs/topic_perspectives_aggregate.json")
+
     return parser
 
 
@@ -105,6 +114,29 @@ def main() -> None:
                     "processed": len(results),
                     "output_dir": args.output_dir,
                     "channels_config": args.channels_config,
+                },
+                indent=2,
+            )
+        )
+
+
+    if args.command == "analyze-topics":
+        from yt_transcripts.services.transcript_intelligence_pipeline import TranscriptIntelligencePipeline
+
+        pipeline = TranscriptIntelligencePipeline()
+        result = pipeline.run(
+            input_dir=args.input_dir,
+            model=args.model,
+            prompt_file=args.prompt_file,
+            output_file=args.output_file,
+        )
+        print(
+            json.dumps(
+                {
+                    "analyzed_videos": result["analyzed_videos"],
+                    "topics": len(result["topics"]),
+                    "output_file": args.output_file,
+                    "model": args.model,
                 },
                 indent=2,
             )
