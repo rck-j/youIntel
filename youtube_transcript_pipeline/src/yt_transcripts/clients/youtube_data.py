@@ -1,11 +1,27 @@
 from __future__ import annotations
 
 import os
+import re
 from typing import Optional
 
 from googleapiclient.discovery import build
 
 from yt_transcripts.models.video import VideoItem
+
+
+_ISO8601_DURATION_PATTERN = re.compile(
+    r"^P(?:\d+Y)?(?:\d+M)?(?:\d+D)?(?:T(?:(?P<hours>\d+)H)?(?:(?P<minutes>\d+)M)?(?:(?P<seconds>\d+)S)?)?$"
+)
+
+
+def parse_iso8601_duration_to_seconds(duration: str) -> Optional[int]:
+    match = _ISO8601_DURATION_PATTERN.match(duration)
+    if not match:
+        return None
+    hours = int(match.group("hours") or 0)
+    minutes = int(match.group("minutes") or 0)
+    seconds = int(match.group("seconds") or 0)
+    return (hours * 3600) + (minutes * 60) + seconds
 
 
 class YouTubeDataClient:
@@ -38,8 +54,16 @@ class YouTubeDataClient:
             .execute()
         )
 
+        items = response.get("items", [])
+        video_ids = [
+            item.get("snippet", {}).get("resourceId", {}).get("videoId")
+            for item in items
+            if item.get("snippet", {}).get("resourceId", {}).get("videoId")
+        ]
+        durations_by_video_id = self._get_durations_by_video_id(video_ids)
+
         videos: list[VideoItem] = []
-        for item in response.get("items", []):
+        for item in items:
             snippet = item.get("snippet", {})
             resource_id = snippet.get("resourceId", {})
             video_id = resource_id.get("videoId")
@@ -50,6 +74,7 @@ class YouTubeDataClient:
                     video_id=video_id,
                     title=snippet.get("title", ""),
                     url=f"https://www.youtube.com/watch?v={video_id}",
+                    duration_seconds=durations_by_video_id.get(video_id),
                     published_at=snippet.get("publishedAt"),
                     channel_id=snippet.get("channelId"),
                     channel_title=snippet.get("channelTitle"),
@@ -57,6 +82,26 @@ class YouTubeDataClient:
                 )
             )
         return videos
+
+    def _get_durations_by_video_id(self, video_ids: list[str]) -> dict[str, Optional[int]]:
+        if not video_ids:
+            return {}
+        response = (
+            self._service.videos()
+            .list(
+                part="contentDetails",
+                id=",".join(video_ids),
+            )
+            .execute()
+        )
+        durations: dict[str, Optional[int]] = {}
+        for item in response.get("items", []):
+            video_id = item.get("id")
+            if not video_id:
+                continue
+            duration = item.get("contentDetails", {}).get("duration", "")
+            durations[video_id] = parse_iso8601_duration_to_seconds(duration)
+        return durations
 
     def find_channel_by_name(self, channel_name: str) -> Optional[dict[str, str]]:
         search_response = (

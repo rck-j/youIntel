@@ -26,6 +26,15 @@ pip install -r requirements.txt
 
 Copy `.env.example` to `.env` and add your YouTube Data API key.
 
+Transcript retrieval duration guardrails are configurable through `.env`:
+
+```bash
+TRANSCRIPT_MIN_VIDEO_SECONDS=180
+TRANSCRIPT_MAX_VIDEO_SECONDS=1200
+```
+
+Videos shorter than the minimum or longer than the maximum are skipped and written as structured `no_transcript` results.
+
 ## Single video
 
 ```bash
