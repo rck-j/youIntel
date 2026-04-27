@@ -53,10 +53,10 @@ def build_parser() -> argparse.ArgumentParser:
         "analyze-topics",
         help="Analyze downloaded transcripts and aggregate topics by channel perspective",
     )
-    analyze.add_argument("--input-dir", default="/outputs")
+    analyze.add_argument("--input-dir", default="outputs")
     analyze.add_argument("--model", default=os.getenv("OPENAI_ANALYSIS_MODEL", "gpt-5"))
     analyze.add_argument("--prompt-file", default="topic_perspective_prompt.txt")
-    analyze.add_argument("--output-file", default="/outputs/topic_perspectives_aggregate.json")
+    analyze.add_argument("--output-file", default="outputs/topic_perspectives_aggregate.json")
 
     return parser
 

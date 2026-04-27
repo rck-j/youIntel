@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from errno import EACCES, EROFS
 from pathlib import Path
 
 from yt_transcripts.services.prompt_service import PromptService
@@ -65,8 +66,18 @@ class TranscriptIntelligencePipeline:
 
         if output_file:
             output_path = Path(output_file)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            output_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+            try:
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+            except OSError as exc:
+                if exc.errno in {EACCES, EROFS}:
+                    raise RuntimeError(
+                        "Output path is not writable. "
+                        f"Received --output-file '{output_file}'. "
+                        "Use a writable project path such as "
+                        "'outputs/topic_perspectives_aggregate.json'."
+                    ) from exc
+                raise
 
         return result
 
