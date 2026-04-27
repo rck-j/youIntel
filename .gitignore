@@ -1,3 +1,4 @@
 .env
 mvp*
 transcript_pipeline.py
+/youtube_transcript_pipeline/outputs/*

@@ -1,16 +1,106 @@
 version: 1
 channels:
-  - name: Google for Developers
-    channel_id: UC_x5XG1OV2P6uZZ5FSM9Ttw
-    enabled: true
-    tags: [technology, developer]
-
-  - name: Marques Brownlee
-    channel_id: UCBJycsmduvYEL83R_U4JriQ
-    enabled: true
-    tags: [technology, consumer]
-
-  - name: Example Disabled Channel
-    channel_id: UCXXXXXXXXXXXXXXXXXXXXXX
-    enabled: false
-    tags: [example]
+- name: MeidasTouch
+  channel_id: UC9r9HYFxEQOBXSopFS61ZWg
+  enabled: true
+  tags: []
+- name: Secular Talk
+  channel_id: UCldfgbzNILYZA4dmDt4Cd6A
+  enabled: true
+  tags: []
+- name: Breaking Points
+  channel_id: UCDRIjKy6eZOvKtOELtTdeUA
+  enabled: true
+  tags: []
+- name: The Daily Wire
+  channel_id: UCroKPvbmaQKGK5tjtQsvaDw
+  enabled: true
+  tags: []
+- name: Tucker Carlson Network
+  channel_id: UCjjBjVc0b1cIpNGEeZtS2lg
+  enabled: true
+  tags: []
+- name: Candace Owens
+  channel_id: UCL0u5uz7KZ9q-pe-VC8TY-w
+  enabled: true
+  tags: []
+- name: The Young Turks
+  channel_id: UC1yBKRuGpC1tSM73A0ZjYjQ
+  enabled: true
+  tags: []
+- name: Adam Mockler
+  channel_id: UC8DA4o0SyaGfyVaBLbF5EXg
+  enabled: true
+  tags: []
+- name: Fox News
+  channel_id: UCXIJgqnII2ZOINSWNOGFThA
+  enabled: true
+  tags: []
+- name: Brian Tyler Cohen
+  channel_id: UCQANb2YPwAtK-IQJrLaaUFw
+  enabled: true
+  tags: []
+- name: Black Conservative Perspective
+  channel_id: UCKkW8kJRYo0GXd1asPX3Z9Q
+  enabled: true
+  tags: []
+- name: Conservative Twins
+  channel_id: UCFfD9fWqkT4PNy7v6r8ilmg
+  enabled: true
+  tags: []
+- name: David Pakman Show
+  channel_id: UCvixJtaXuNdMPUGdOPcY8Ag
+  enabled: true
+  tags: []
+- name: Destiny
+  channel_id: UC554eY5jNUfDq3yDOJYirOQ
+  enabled: true
+  tags: []
+- name: Philip DeFranco
+  channel_id: UClFSU9_bUb4Rc6OYfTt5SPw
+  enabled: true
+  tags: []
+- name: Prof. Jiang Clips
+  channel_id: UCoocsqxXtMMLq-Tnp4rJUXA
+  enabled: true
+  tags: []
+- name: CNN
+  channel_id: UCupvZG-5ko_eiXAupbDfxWw
+  enabled: true
+  tags: []
+- name: Garys Economics
+  channel_id: UC5Ghe5TBQGYIOANuiNW4hDQ
+  enabled: true
+  tags: []
+- name: ClearValue Tax
+  channel_id: UCigUBIf-zt_DA6xyOQtq2WA
+  enabled: true
+  tags: []
+- name: The Economist
+  channel_id: UC0p5jTq6Xx_DosDFxVXnWaQ
+  enabled: true
+  tags: []
+- name: Economics Explained
+  channel_id: UCZ4AMrDcNrfy3X6nsU8-rPg
+  enabled: true
+  tags: []
+- name: Proactive Thinker
+  channel_id: UC5YKivGUTTQmhSuaXbxfZSg
+  enabled: true
+  tags: []
+- name: CaspianReport
+  channel_id: UCwnKziETDbHJtx78nIkfYug
+  enabled: true
+  tags: []
+- name: Zeihan on Geopolitics
+  channel_id: UCsy9I56PY3IngCf_VGjunMQ
+  enabled: true
+  tags: []
+- name: Council on Foreign Relations
+  channel_id: UCL_A4jkwvKuMyToAPy3FQKQ
+  enabled: true
+  tags: []
+- name: RealLifeLore
+  channel_id: UCP5tjEmvPItGyLhmjdwP7Ww
+  enabled: true
+  tags: []
