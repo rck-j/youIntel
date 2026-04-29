@@ -11,5 +11,9 @@ class PromptService:
         self.prompts_dir = Path(prompts_dir) if prompts_dir else base_dir / "prompts"
 
     def load_prompt(self, file_name: str) -> str:
-        prompt_path = self.prompts_dir / file_name
+        requested_path = Path(file_name)
+        if requested_path.exists():
+            prompt_path = requested_path
+        else:
+            prompt_path = self.prompts_dir / file_name
         return prompt_path.read_text(encoding="utf-8").strip()
