@@ -39,7 +39,7 @@ class TranscriptIntelligencePipeline:
             if not transcript_text:
                 continue
 
-            topics = self.analysis_service.analyze(
+            analysis_payload = self.analysis_service.analyze(
                 model=model,
                 prompt_text=prompt_text,
                 transcript_text=transcript_text,
@@ -52,16 +52,16 @@ class TranscriptIntelligencePipeline:
                     "video_id": record.get("video_id"),
                     "channel_id": record.get("channel_id"),
                     "channel_title": record.get("channel_title"),
-                    "topics": topics,
+                    "analysis": analysis_payload,
                 }
             )
 
-        aggregated_topics = self.aggregation_service.aggregate(analysis_rows)
+        aggregated_collections = self.aggregation_service.aggregate(analysis_rows)
         result = {
             "model": model,
             "input_dir": str(Path(input_dir).resolve()),
             "analyzed_videos": len(analysis_rows),
-            "topics": aggregated_topics,
+            "aggregations": aggregated_collections,
         }
 
         if output_file:
