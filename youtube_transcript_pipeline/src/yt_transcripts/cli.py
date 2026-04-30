@@ -134,7 +134,7 @@ def main() -> None:
             json.dumps(
                 {
                     "analyzed_videos": result["analyzed_videos"],
-                    "topics": len(result["topics"]),
+                    "aggregation_collections": len(result["aggregations"]),
                     "output_file": args.output_file,
                     "model": args.model,
                 },
