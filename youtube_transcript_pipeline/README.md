@@ -154,3 +154,13 @@ FROM video_analyses va
 JOIN videos v ON v.id = va.video_id
 WHERE v.youtube_video_id = 'VIDEO_ID_HERE';
 ```
+
+### Channel and video metric tracking
+
+The pipeline now stores current channel metrics (`subscriber_count`, `total_view_count`, `video_count`) and current video metrics (`view_count`, `like_count`, `comment_count`) on each run.
+
+It also stores time-series snapshots in:
+- `channel_metric_snapshots`
+- `video_metric_snapshots`
+
+`video_metric_snapshots.hours_since_publish` allows querying engagement near a target time window after release (for example, ~24h or ~168h after publish).
