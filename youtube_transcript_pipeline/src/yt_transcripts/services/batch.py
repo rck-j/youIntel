@@ -2,13 +2,22 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 from yt_transcripts.clients.youtube_data import YouTubeDataClient
 from yt_transcripts.config import get_transcript_duration_bounds
+from yt_transcripts.db.session import SessionLocal
 from yt_transcripts.models.transcript import TranscriptResult
 from yt_transcripts.models.video import VideoItem
+from yt_transcripts.repositories.persistence import (
+    create_channel_metric_snapshot,
+    create_video_metric_snapshot,
+    upsert_channel,
+    upsert_transcript,
+    upsert_video,
+)
 from yt_transcripts.services.pipeline import TranscriptPipeline
 
 
@@ -42,31 +51,73 @@ class BatchProcessor:
 
         batch_results: list[dict] = []
 
-        for channel_id in channel_ids:
-            videos = self.youtube_client.get_latest_videos(
-                channel_id=channel_id,
-                max_results=max_videos_per_channel,
-            )
+        with SessionLocal() as session:
+            for channel_id in channel_ids:
+                channel_stats = self.youtube_client.get_channel_statistics(channel_id)
+                videos = self.youtube_client.get_latest_videos(channel_id=channel_id, max_results=max_videos_per_channel)
 
-            for video in videos:
-                if self._should_skip_video(video):
-                    transcript = self._build_skipped_transcript_result(video)
-                else:
-                    transcript = self.pipeline.get_transcript(
-                        video=video.url,
-                        languages=languages or ["en"],
-                        enable_ytdlp_fallback=enable_ytdlp_fallback,
-                        enable_whisper_fallback=enable_whisper_fallback,
-                        whisper_model=whisper_model,
-                        whisper_language=whisper_language,
-                    )
-                record = self._build_record(video, transcript.to_dict())
-                batch_results.append(record)
-                self._write_record(output_path=output_path, video=video, record=record)
+                for video in videos:
+                    if self._should_skip_video(video):
+                        transcript = self._build_skipped_transcript_result(video)
+                    else:
+                        transcript = self.pipeline.get_transcript(
+                            video=video.url,
+                            languages=languages or ["en"],
+                            enable_ytdlp_fallback=enable_ytdlp_fallback,
+                            enable_whisper_fallback=enable_whisper_fallback,
+                            whisper_model=whisper_model,
+                            whisper_language=whisper_language,
+                        )
+                    self._persist_video_and_transcript(session=session, video=video, transcript=transcript, channel_stats=channel_stats)
+                    record = self._build_record(video, transcript.to_dict())
+                    batch_results.append(record)
+                    self._write_record(output_path=output_path, video=video, record=record)
+            session.commit()
 
         summary_path = output_path / "batch_summary.json"
         summary_path.write_text(json.dumps(batch_results, indent=2), encoding="utf-8")
         return batch_results
+
+    @staticmethod
+    def _parse_published_at(value: str | None) -> datetime | None:
+        if not value:
+            return None
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+    def _persist_video_and_transcript(self, *, session, video: VideoItem, transcript: TranscriptResult, channel_stats: dict) -> None:
+        channel = upsert_channel(
+            session,
+            youtube_channel_id=video.channel_id or "unknown",
+            title=(channel_stats.get("title") or video.channel_title or "Unknown"),
+            url=(channel_stats.get("url") or (f"https://www.youtube.com/channel/{video.channel_id}" if video.channel_id else "")),
+            subscriber_count=channel_stats.get("subscriber_count"),
+            total_view_count=channel_stats.get("total_view_count"),
+            video_count=channel_stats.get("video_count"),
+        )
+        create_channel_metric_snapshot(session, channel_id=channel.id, subscriber_count=channel.subscriber_count, total_view_count=channel.total_view_count, video_count=channel.video_count)
+        db_video = upsert_video(
+            session,
+            channel_id=channel.id,
+            youtube_video_id=video.video_id,
+            title=video.title,
+            url=video.url,
+            published_at=self._parse_published_at(video.published_at),
+            duration_seconds=video.duration_seconds,
+            is_short=bool(video.duration_seconds and video.duration_seconds <= 60),
+            view_count=video.view_count,
+            like_count=video.like_count,
+            comment_count=video.comment_count,
+        )
+        create_video_metric_snapshot(session, video_id=db_video.id, published_at=db_video.published_at, view_count=db_video.view_count, like_count=db_video.like_count, comment_count=db_video.comment_count)
+        upsert_transcript(
+            session,
+            video_id=db_video.id,
+            source=transcript.source,
+            language=transcript.language_code,
+            raw_transcript_json=transcript.to_dict(),
+            normalized_text=transcript.transcript_text,
+            segment_count=len(transcript.segments),
+        )
 
     @staticmethod
     def _build_record(video: VideoItem, transcript: dict) -> dict:
