@@ -11,13 +11,7 @@ from yt_transcripts.config import get_transcript_duration_bounds
 from yt_transcripts.db.session import SessionLocal
 from yt_transcripts.models.transcript import TranscriptResult
 from yt_transcripts.models.video import VideoItem
-from yt_transcripts.repositories.persistence import (
-    create_channel_metric_snapshot,
-    create_video_metric_snapshot,
-    upsert_channel,
-    upsert_transcript,
-    upsert_video,
-)
+from yt_transcripts.repositories.persistence import upsert_channel, upsert_transcript, upsert_video
 from yt_transcripts.services.pipeline import TranscriptPipeline
 
 
@@ -53,8 +47,10 @@ class BatchProcessor:
 
         with SessionLocal() as session:
             for channel_id in channel_ids:
-                channel_stats = self.youtube_client.get_channel_statistics(channel_id)
-                videos = self.youtube_client.get_latest_videos(channel_id=channel_id, max_results=max_videos_per_channel)
+                videos = self.youtube_client.get_latest_videos(
+                    channel_id=channel_id,
+                    max_results=max_videos_per_channel,
+                )
 
                 for video in videos:
                     if self._should_skip_video(video):
@@ -68,7 +64,7 @@ class BatchProcessor:
                             whisper_model=whisper_model,
                             whisper_language=whisper_language,
                         )
-                    self._persist_video_and_transcript(session=session, video=video, transcript=transcript, channel_stats=channel_stats)
+                    self._persist_video_and_transcript(session=session, video=video, transcript=transcript)
                     record = self._build_record(video, transcript.to_dict())
                     batch_results.append(record)
                     self._write_record(output_path=output_path, video=video, record=record)
@@ -84,17 +80,13 @@ class BatchProcessor:
             return None
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
-    def _persist_video_and_transcript(self, *, session, video: VideoItem, transcript: TranscriptResult, channel_stats: dict) -> None:
+    def _persist_video_and_transcript(self, *, session, video: VideoItem, transcript: TranscriptResult) -> None:
         channel = upsert_channel(
             session,
             youtube_channel_id=video.channel_id or "unknown",
-            title=(channel_stats.get("title") or video.channel_title or "Unknown"),
-            url=(channel_stats.get("url") or (f"https://www.youtube.com/channel/{video.channel_id}" if video.channel_id else "")),
-            subscriber_count=channel_stats.get("subscriber_count"),
-            total_view_count=channel_stats.get("total_view_count"),
-            video_count=channel_stats.get("video_count"),
+            title=video.channel_title or "Unknown",
+            url=f"https://www.youtube.com/channel/{video.channel_id}" if video.channel_id else "",
         )
-        create_channel_metric_snapshot(session, channel_id=channel.id, subscriber_count=channel.subscriber_count, total_view_count=channel.total_view_count, video_count=channel.video_count)
         db_video = upsert_video(
             session,
             channel_id=channel.id,
@@ -104,11 +96,7 @@ class BatchProcessor:
             published_at=self._parse_published_at(video.published_at),
             duration_seconds=video.duration_seconds,
             is_short=bool(video.duration_seconds and video.duration_seconds <= 60),
-            view_count=video.view_count,
-            like_count=video.like_count,
-            comment_count=video.comment_count,
         )
-        create_video_metric_snapshot(session, video_id=db_video.id, published_at=db_video.published_at, view_count=db_video.view_count, like_count=db_video.like_count, comment_count=db_video.comment_count)
         upsert_transcript(
             session,
             video_id=db_video.id,

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import JSON, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
@@ -12,30 +12,18 @@ class Base(DeclarativeBase):
 
 class Channel(Base):
     __tablename__ = "channels"
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     youtube_channel_id: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     url: Mapped[str] = mapped_column(String(512), nullable=False)
-    subscriber_count: Mapped[int | None] = mapped_column(Integer)
-    total_view_count: Mapped[int | None] = mapped_column(Integer)
-    video_count: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
 
-class ChannelMetricSnapshot(Base):
-    __tablename__ = "channel_metric_snapshots"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    channel_id: Mapped[int] = mapped_column(ForeignKey("channels.id", ondelete="CASCADE"), nullable=False)
-    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    subscriber_count: Mapped[int | None] = mapped_column(Integer)
-    total_view_count: Mapped[int | None] = mapped_column(Integer)
-    video_count: Mapped[int | None] = mapped_column(Integer)
-    __table_args__ = (Index("ix_channel_metrics_channel_id", "channel_id"),)
-
-
 class Video(Base):
     __tablename__ = "videos"
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     channel_id: Mapped[int] = mapped_column(ForeignKey("channels.id", ondelete="CASCADE"), nullable=False)
     youtube_video_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
@@ -44,28 +32,15 @@ class Video(Base):
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     duration_seconds: Mapped[int | None] = mapped_column(Integer)
     is_short: Mapped[bool] = mapped_column(default=False, nullable=False)
-    view_count: Mapped[int | None] = mapped_column(Integer)
-    like_count: Mapped[int | None] = mapped_column(Integer)
-    comment_count: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
     __table_args__ = (Index("ix_videos_published_at", "published_at"), Index("ix_videos_channel_id", "channel_id"))
 
 
-class VideoMetricSnapshot(Base):
-    __tablename__ = "video_metric_snapshots"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    video_id: Mapped[int] = mapped_column(ForeignKey("videos.id", ondelete="CASCADE"), nullable=False)
-    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    hours_since_publish: Mapped[int | None] = mapped_column(Integer)
-    view_count: Mapped[int | None] = mapped_column(Integer)
-    like_count: Mapped[int | None] = mapped_column(Integer)
-    comment_count: Mapped[int | None] = mapped_column(Integer)
-    __table_args__ = (Index("ix_video_metrics_video_id", "video_id"),)
-
-# ... keep existing
 class Transcript(Base):
     __tablename__ = "transcripts"
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     video_id: Mapped[int] = mapped_column(ForeignKey("videos.id", ondelete="CASCADE"), nullable=False)
     source: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -76,11 +51,13 @@ class Transcript(Base):
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
     __table_args__ = (UniqueConstraint("video_id", "source", "language", name="uq_transcript_video_source_lang"),)
 
 
 class AnalysisRun(Base):
     __tablename__ = "analysis_runs"
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     video_id: Mapped[int] = mapped_column(ForeignKey("videos.id", ondelete="CASCADE"), nullable=False)
     transcript_id: Mapped[int] = mapped_column(ForeignKey("transcripts.id", ondelete="CASCADE"), nullable=False)
@@ -93,11 +70,18 @@ class AnalysisRun(Base):
     status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    __table_args__ = (UniqueConstraint("video_id", "analysis_type", "model_name", "prompt_version", name="uq_analysis_run_key"), Index("ix_analysis_runs_video_id", "video_id"), Index("ix_analysis_runs_prompt_version", "prompt_version"), Index("ix_analysis_runs_status", "status"))
+
+    __table_args__ = (
+        UniqueConstraint("video_id", "analysis_type", "model_name", "prompt_version", name="uq_analysis_run_key"),
+        Index("ix_analysis_runs_video_id", "video_id"),
+        Index("ix_analysis_runs_prompt_version", "prompt_version"),
+        Index("ix_analysis_runs_status", "status"),
+    )
 
 
 class VideoAnalysis(Base):
     __tablename__ = "video_analyses"
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     analysis_run_id: Mapped[int] = mapped_column(ForeignKey("analysis_runs.id", ondelete="CASCADE"), unique=True, nullable=False)
     video_id: Mapped[int] = mapped_column(ForeignKey("videos.id", ondelete="CASCADE"), nullable=False)
