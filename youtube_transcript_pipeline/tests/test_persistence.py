@@ -31,10 +31,11 @@ def test_database_initialization() -> None:
 
 def test_channel_video_transcript_upserts_and_duplicate_prevention() -> None:
     session = make_session()
-    channel = upsert_channel(session, youtube_channel_id="chan1", title="C1", url="u1")
-    channel2 = upsert_channel(session, youtube_channel_id="chan1", title="C2", url="u2")
+    channel = upsert_channel(session, youtube_channel_id="chan1", title="C1", url="u1", subscriber_count=100)
+    channel2 = upsert_channel(session, youtube_channel_id="chan1", title="C2", url="u2", subscriber_count=200)
     assert channel.id == channel2.id
     assert channel2.title == "C2"
+    assert channel2.subscriber_count == 200
 
     video = upsert_video(
         session,
@@ -44,6 +45,8 @@ def test_channel_video_transcript_upserts_and_duplicate_prevention() -> None:
         url="vu1",
         published_at=datetime.utcnow(),
         duration_seconds=120,
+        view_count=1000,
+        like_count=100,
         is_short=False,
     )
     video2 = upsert_video(
@@ -54,10 +57,14 @@ def test_channel_video_transcript_upserts_and_duplicate_prevention() -> None:
         url="vu2",
         published_at=datetime.utcnow(),
         duration_seconds=60,
+        view_count=2000,
+        like_count=200,
         is_short=True,
     )
     assert video.id == video2.id
     assert video2.title == "V2"
+    assert video2.view_count == 2000
+    assert video2.like_count == 200
 
     t1 = upsert_transcript(
         session,
@@ -83,8 +90,8 @@ def test_channel_video_transcript_upserts_and_duplicate_prevention() -> None:
 
 def test_analysis_run_uniqueness_and_video_analysis_save() -> None:
     session = make_session()
-    channel = upsert_channel(session, youtube_channel_id="chan1", title="C1", url="u1")
-    video = upsert_video(session, channel_id=channel.id, youtube_video_id="vid1", title="V1", url="vu1", published_at=None, duration_seconds=10, is_short=True)
+    channel = upsert_channel(session, youtube_channel_id="chan1", title="C1", url="u1", subscriber_count=1000)
+    video = upsert_video(session, channel_id=channel.id, youtube_video_id="vid1", title="V1", url="vu1", published_at=None, duration_seconds=10, view_count=10, like_count=1, is_short=True)
     transcript = upsert_transcript(session, video_id=video.id, source="api", language="en", raw_transcript_json={}, normalized_text="abc", segment_count=0)
 
     run = create_analysis_run(session, video_id=video.id, transcript_id=transcript.id, analysis_type="topic_perspective", model_name="gpt", prompt_version="v1", prompt_text="prompt")
