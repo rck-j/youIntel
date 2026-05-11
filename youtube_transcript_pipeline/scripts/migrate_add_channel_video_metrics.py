@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from sqlalchemy import create_engine, inspect, text
 
 
 def _database_url() -> str:
-    return os.getenv("DATABASE_URL", "sqlite:///yt_transcripts.db")
+    env_url = os.getenv("DATABASE_URL")
+    if env_url:
+        return env_url
+
+    default_db = Path(__file__).resolve().parents[1] / "yt_transcripts.db"
+    return f"sqlite:///{default_db}"
 
 
 def _column_exists(inspector, table_name: str, column_name: str) -> bool:
@@ -22,14 +28,20 @@ def _add_column_if_missing(connection, inspector, table_name: str, column_name: 
 
 
 def main() -> None:
-    engine = create_engine(_database_url(), future=True)
+    db_url = _database_url()
+    engine = create_engine(db_url, future=True)
 
     applied: list[str] = []
     with engine.begin() as connection:
         inspector = inspect(connection)
 
-        if "channels" not in inspector.get_table_names() or "videos" not in inspector.get_table_names():
-            raise RuntimeError("Expected tables 'channels' and 'videos' to exist. Run init-db before this migration.")
+        table_names = set(inspector.get_table_names())
+        if "channels" not in table_names or "videos" not in table_names:
+            raise RuntimeError(
+                "Expected tables 'channels' and 'videos' to exist. "
+                f"DATABASE_URL={db_url} has tables={sorted(table_names)}. "
+                "Run init-db before this migration."
+            )
 
         if _add_column_if_missing(connection, inspector, "channels", "subscriber_count", "INTEGER"):
             applied.append("channels.subscriber_count")
