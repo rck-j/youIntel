@@ -1,18 +1,8 @@
 from __future__ import annotations
 
-import os
-from pathlib import Path
+from sqlalchemy import inspect, text
 
-from sqlalchemy import create_engine, inspect, text
-
-
-def _database_url() -> str:
-    env_url = os.getenv("DATABASE_URL")
-    if env_url:
-        return env_url
-
-    default_db = Path(__file__).resolve().parents[1] / "yt_transcripts.db"
-    return f"sqlite:///{default_db}"
+from yt_transcripts.db.session import _normalized_database_url, get_engine
 
 
 def _column_exists(inspector, table_name: str, column_name: str) -> bool:
@@ -28,8 +18,8 @@ def _add_column_if_missing(connection, inspector, table_name: str, column_name: 
 
 
 def main() -> None:
-    db_url = _database_url()
-    engine = create_engine(db_url, future=True)
+    db_url = _normalized_database_url()
+    engine = get_engine(database_url=db_url)
 
     applied: list[str] = []
     with engine.begin() as connection:
