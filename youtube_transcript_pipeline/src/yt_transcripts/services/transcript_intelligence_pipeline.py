@@ -48,21 +48,22 @@ class TranscriptIntelligencePipeline:
                 run = existing or create_analysis_run(session, video_id=db_video.id, transcript_id=transcript_row.id, analysis_type="topic_perspective", model_name=model, prompt_version=prompt_version, prompt_text=prompt_text)
 
                 analysis_payload = self.analysis_service.analyze(model=model, prompt_text=prompt_text, transcript_text=transcript_text, video_id=record.get("video_id", ""), channel_id=record.get("channel_id"), channel_title=record.get("channel_title"))
+                mapped_analysis = self._map_analysis_fields(analysis_payload)
                 raw_response = json.dumps(analysis_payload)
                 complete_analysis_run(session, analysis_run=run, raw_response=raw_response, parsed_response_json=analysis_payload)
                 save_video_analysis(
                     session,
                     analysis_run_id=run.id,
                     video_id=db_video.id,
-                    summary=analysis_payload.get("summary"),
-                    main_topics_json=analysis_payload.get("main_topics") or analysis_payload.get("topics"),
-                    claims_json=analysis_payload.get("claims"),
-                    perspective_json=analysis_payload.get("perspective"),
-                    sentiment_json=analysis_payload.get("sentiment"),
-                    bias_signals_json=analysis_payload.get("bias_signals"),
-                    rhetoric_signals_json=analysis_payload.get("rhetoric_signals"),
-                    influence_signals_json=analysis_payload.get("influence_signals"),
-                    confidence_score=analysis_payload.get("confidence_score"),
+                    summary=mapped_analysis.get("summary"),
+                    main_topics_json=mapped_analysis.get("main_topics"),
+                    claims_json=mapped_analysis.get("claims"),
+                    perspective_json=mapped_analysis.get("perspective"),
+                    sentiment_json=mapped_analysis.get("sentiment"),
+                    bias_signals_json=mapped_analysis.get("bias_signals"),
+                    rhetoric_signals_json=mapped_analysis.get("rhetoric_signals"),
+                    influence_signals_json=mapped_analysis.get("influence_signals"),
+                    confidence_score=mapped_analysis.get("confidence_score"),
                 )
                 session.commit()
                 analysis_rows.append({"video_id": record.get("video_id"), "channel_id": record.get("channel_id"), "channel_title": record.get("channel_title"), "analysis": analysis_payload})
@@ -95,3 +96,29 @@ class TranscriptIntelligencePipeline:
                 continue
             records.append({"video_id": video.get("video_id"), "channel_id": video.get("channel_id"), "channel_title": video.get("channel_title"), "transcript_text": transcript.get("transcript_text", "")})
         return records
+
+    @staticmethod
+    def _map_analysis_fields(analysis_payload: dict) -> dict:
+        if not isinstance(analysis_payload, dict):
+            return {}
+
+        nested_payload = analysis_payload.get("analysis")
+        root = nested_payload if isinstance(nested_payload, dict) else analysis_payload
+
+        def pick(*keys: str):
+            for key in keys:
+                if key in root and root.get(key) is not None:
+                    return root.get(key)
+            return None
+
+        return {
+            "summary": pick("summary", "overall_summary"),
+            "main_topics": pick("main_topics", "topics"),
+            "claims": pick("claims", "key_claims"),
+            "perspective": pick("perspective", "perspectives"),
+            "sentiment": pick("sentiment", "sentiment_analysis"),
+            "bias_signals": pick("bias_signals", "bias"),
+            "rhetoric_signals": pick("rhetoric_signals", "rhetorical_signals"),
+            "influence_signals": pick("influence_signals", "influence"),
+            "confidence_score": pick("confidence_score", "confidence"),
+        }
