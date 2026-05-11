@@ -102,8 +102,20 @@ class TranscriptIntelligencePipeline:
         if not isinstance(analysis_payload, dict):
             return {}
 
-        nested_payload = analysis_payload.get("analysis")
-        root = nested_payload if isinstance(nested_payload, dict) else analysis_payload
+        root = analysis_payload
+        for wrapper_key in ("analysis", "result", "data"):
+            candidate = root.get(wrapper_key)
+            if isinstance(candidate, dict):
+                root = candidate
+                break
+
+        main_topics_candidate = root.get("main_topics")
+        if (
+            isinstance(main_topics_candidate, dict)
+            and root.get("summary") is None
+            and any(key in main_topics_candidate for key in ("summary", "topics", "claims", "perspectives", "sentiment_analysis", "bias", "rhetorical_signals", "influence", "confidence"))
+        ):
+            root = main_topics_candidate
 
         def pick(*keys: str):
             for key in keys:
