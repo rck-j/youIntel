@@ -12,6 +12,8 @@ src/yt_transcripts/
   cli.py
 config/
   channels.yaml
+prompts/
+  topic_perspective_prompt.txt
 ```
 
 ## Install
@@ -103,3 +105,63 @@ PYTHONPATH=src python -m yt_transcripts.cli batch-from-config \
 This command uses `ChannelService` to load channels and `LatestVideosTranscriptService` to orchestrate retrieval for future extension points (processing, summarization, and persistence).
 
 This writes one JSON file per video plus `batch_summary.json`.
+
+## Analyze downloaded transcripts with GPT-5
+
+Set `OPENAI_API_KEY` in your environment, then run:
+
+```bash
+PYTHONPATH=src python -m yt_transcripts.cli analyze-topics \
+  --input-dir /outputs \
+  --model gpt-5 \
+  --prompt-file topic_perspective_prompt.txt \
+  --output-file /outputs/topic_perspectives_aggregate.json
+```
+
+This command:
+- Loads prompts from `prompts/`
+- Analyzes each transcript JSON inside `/outputs`
+- Detects topics and per-topic channel perspectives
+- Aggregates topics across channels and attributes which channels supplied each perspective
+
+## Database setup and usage
+
+Set `DATABASE_URL` in `.env` (Postgres example: `postgresql+psycopg://user:pass@localhost:5432/ytintel`).
+
+Initialize schema:
+
+```bash
+python -m yt_transcripts.cli init-db
+```
+
+
+For existing databases created before these fields were added, run:
+
+```bash
+PYTHONPATH=src python scripts/migrate_add_channel_video_metrics.py
+```
+
+Run transcript fetch and persist:
+
+```bash
+python -m yt_transcripts.cli batch-from-config --channels-config config/channels.yaml --max-videos 5 --output-dir outputs
+```
+
+Run analysis and persist:
+
+```bash
+python -m yt_transcripts.cli analyze-topics --input-dir outputs --prompt-file topic_perspective_prompt.txt --prompt-version v1
+```
+
+Example SQL query:
+
+```sql
+SELECT v.youtube_video_id, va.summary, va.main_topics_json
+FROM video_analyses va
+JOIN videos v ON v.id = va.video_id
+WHERE v.youtube_video_id = 'VIDEO_ID_HERE';
+```
+
+### Channel and video metric tracking
+
+The pipeline stores channel subscriber counts (`channels.subscriber_count`) and per-video engagement metrics (`videos.view_count`, `videos.like_count`) on each run.

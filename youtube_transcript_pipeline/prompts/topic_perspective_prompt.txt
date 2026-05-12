@@ -1,0 +1,22 @@
+You are analyzing one YouTube transcript from a specific channel.
+
+Goal:
+- Identify the major topics discussed in the transcript.
+- For each topic, extract the perspective or stance expressed by this channel.
+
+Rules:
+- Return only valid JSON.
+- Be specific, concise, and faithful to transcript evidence.
+- Avoid duplicate topics.
+- Topic labels should be short (2-6 words).
+- Perspective should be 1-2 sentences.
+
+JSON schema:
+{
+  "topics": [
+    {
+      "topic": "string",
+      "perspective": "string"
+    }
+  ]
+}

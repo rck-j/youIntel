@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 from yt_transcripts.config import configure_logging
+from yt_transcripts.db.session import init_db
 from yt_transcripts.services.batch import BatchProcessor
 from yt_transcripts.services.channel_service import ChannelService
 from yt_transcripts.services.latest_videos_transcript_service import LatestVideosTranscriptService
@@ -49,6 +50,19 @@ def build_parser() -> argparse.ArgumentParser:
     batch_config.add_argument("--whisper-language", default=os.getenv("WHISPER_LANGUAGE"))
     batch_config.add_argument("--output-dir", default="outputs")
 
+    analyze = subparsers.add_parser(
+        "analyze-topics",
+        help="Analyze downloaded transcripts and aggregate topics by channel perspective",
+    )
+    analyze.add_argument("--input-dir", default="outputs")
+    analyze.add_argument("--model", default=os.getenv("OPENAI_ANALYSIS_MODEL", "gpt-5"))
+    analyze.add_argument("--prompt-file", default="topic_perspective_prompt.txt")
+    analyze.add_argument("--output-file", default="outputs/topic_perspectives_aggregate.json")
+    analyze.add_argument("--prompt-version", default="v1")
+    analyze.add_argument("--force", action="store_true")
+
+    subparsers.add_parser("init-db", help="Initialize database schema")
+
     return parser
 
 
@@ -56,6 +70,11 @@ def main() -> None:
     configure_logging()
     parser = build_parser()
     args = parser.parse_args()
+
+    if args.command == "init-db":
+        init_db()
+        print(json.dumps({"status": "ok", "message": "database initialized"}, indent=2))
+        return
 
     if args.command == "single":
         pipeline = TranscriptPipeline()
@@ -105,6 +124,31 @@ def main() -> None:
                     "processed": len(results),
                     "output_dir": args.output_dir,
                     "channels_config": args.channels_config,
+                },
+                indent=2,
+            )
+        )
+
+
+    if args.command == "analyze-topics":
+        from yt_transcripts.services.transcript_intelligence_pipeline import TranscriptIntelligencePipeline
+
+        pipeline = TranscriptIntelligencePipeline()
+        result = pipeline.run(
+            input_dir=args.input_dir,
+            model=args.model,
+            prompt_file=args.prompt_file,
+            output_file=args.output_file,
+            prompt_version=args.prompt_version,
+            force=args.force,
+        )
+        print(
+            json.dumps(
+                {
+                    "analyzed_videos": result["analyzed_videos"],
+                    "aggregation_collections": len(result["aggregations"]),
+                    "output_file": args.output_file,
+                    "model": args.model,
                 },
                 indent=2,
             )
