@@ -53,19 +53,33 @@ class TranscriptIntelligencePipeline:
                 mapped_analysis = self._map_analysis_fields(normalized_payload)
                 raw_response = json.dumps(analysis_payload)
                 complete_analysis_run(session, analysis_run=run, raw_response=raw_response, parsed_response_json=normalized_payload)
+                parsed_values_to_save = {
+                    "analysis_run_id": run.id,
+                    "video_id": db_video.id,
+                    "summary": mapped_analysis.get("summary"),
+                    "main_topics_json": mapped_analysis.get("main_topics"),
+                    "claims_json": mapped_analysis.get("claims"),
+                    "perspective_json": mapped_analysis.get("perspective"),
+                    "sentiment_json": mapped_analysis.get("sentiment"),
+                    "bias_signals_json": mapped_analysis.get("bias_signals"),
+                    "rhetoric_signals_json": mapped_analysis.get("rhetoric_signals"),
+                    "influence_signals_json": mapped_analysis.get("influence_signals"),
+                    "confidence_score": mapped_analysis.get("confidence_score"),
+                }
+                print(json.dumps({"saved_parsed_values": parsed_values_to_save}, ensure_ascii=False, default=str))
                 save_video_analysis(
                     session,
-                    analysis_run_id=run.id,
-                    video_id=db_video.id,
-                    summary=mapped_analysis.get("summary"),
-                    main_topics_json=mapped_analysis.get("main_topics"),
-                    claims_json=mapped_analysis.get("claims"),
-                    perspective_json=mapped_analysis.get("perspective"),
-                    sentiment_json=mapped_analysis.get("sentiment"),
-                    bias_signals_json=mapped_analysis.get("bias_signals"),
-                    rhetoric_signals_json=mapped_analysis.get("rhetoric_signals"),
-                    influence_signals_json=mapped_analysis.get("influence_signals"),
-                    confidence_score=mapped_analysis.get("confidence_score"),
+                    analysis_run_id=parsed_values_to_save["analysis_run_id"],
+                    video_id=parsed_values_to_save["video_id"],
+                    summary=parsed_values_to_save["summary"],
+                    main_topics_json=parsed_values_to_save["main_topics_json"],
+                    claims_json=parsed_values_to_save["claims_json"],
+                    perspective_json=parsed_values_to_save["perspective_json"],
+                    sentiment_json=parsed_values_to_save["sentiment_json"],
+                    bias_signals_json=parsed_values_to_save["bias_signals_json"],
+                    rhetoric_signals_json=parsed_values_to_save["rhetoric_signals_json"],
+                    influence_signals_json=parsed_values_to_save["influence_signals_json"],
+                    confidence_score=parsed_values_to_save["confidence_score"],
                 )
                 session.commit()
                 analysis_rows.append({"video_id": record.get("video_id"), "channel_id": record.get("channel_id"), "channel_title": record.get("channel_title"), "analysis": analysis_payload})
