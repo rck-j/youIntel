@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from errno import EACCES, EROFS
 from pathlib import Path
 
@@ -48,9 +49,10 @@ class TranscriptIntelligencePipeline:
                 run = existing or create_analysis_run(session, video_id=db_video.id, transcript_id=transcript_row.id, analysis_type="topic_perspective", model_name=model, prompt_version=prompt_version, prompt_text=prompt_text)
 
                 analysis_payload = self.analysis_service.analyze(model=model, prompt_text=prompt_text, transcript_text=transcript_text, video_id=record.get("video_id", ""), channel_id=record.get("channel_id"), channel_title=record.get("channel_title"))
-                mapped_analysis = self._map_analysis_fields(analysis_payload)
+                normalized_payload = self._normalize_analysis_payload(analysis_payload)
+                mapped_analysis = self._map_analysis_fields(normalized_payload)
                 raw_response = json.dumps(analysis_payload)
-                complete_analysis_run(session, analysis_run=run, raw_response=raw_response, parsed_response_json=analysis_payload)
+                complete_analysis_run(session, analysis_run=run, raw_response=raw_response, parsed_response_json=normalized_payload)
                 save_video_analysis(
                     session,
                     analysis_run_id=run.id,
@@ -98,15 +100,36 @@ class TranscriptIntelligencePipeline:
         return records
 
     @staticmethod
-    def _map_analysis_fields(analysis_payload: dict) -> dict:
-        if not isinstance(analysis_payload, dict):
+    def _normalize_analysis_payload(analysis_payload: dict | str | None) -> dict:
+        if analysis_payload is None:
             return {}
 
-        root = analysis_payload
-        for wrapper_key in ("analysis", "result", "data"):
-            candidate = root.get(wrapper_key)
-            if isinstance(candidate, dict):
-                root = candidate
+        payload: dict | str = analysis_payload
+        if isinstance(payload, str):
+            text = payload.strip()
+            if text.startswith("```"):
+                fence_match = re.match(r"^```[a-zA-Z0-9_-]*\s*(.*?)\s*```$", text, re.DOTALL)
+                if fence_match:
+                    text = fence_match.group(1).strip()
+            try:
+                parsed = json.loads(text)
+            except json.JSONDecodeError:
+                return {}
+            if not isinstance(parsed, dict):
+                return {}
+            payload = parsed
+
+        if not isinstance(payload, dict):
+            return {}
+
+        root = payload
+        while isinstance(root, dict):
+            for wrapper_key in ("analysis", "result", "data", "response", "output"):
+                candidate = root.get(wrapper_key)
+                if isinstance(candidate, dict):
+                    root = candidate
+                    break
+            else:
                 break
 
         main_topics_candidate = root.get("main_topics")
@@ -115,7 +138,16 @@ class TranscriptIntelligencePipeline:
             and root.get("summary") is None
             and any(key in main_topics_candidate for key in ("summary", "topics", "claims", "perspectives", "sentiment_analysis", "bias", "rhetorical_signals", "influence", "confidence"))
         ):
-            root = main_topics_candidate
+            return main_topics_candidate
+
+        return root
+
+    @staticmethod
+    def _map_analysis_fields(analysis_payload: dict) -> dict:
+        if not isinstance(analysis_payload, dict):
+            return {}
+        if not analysis_payload:
+            return {}
 
         def pick(*keys: str):
             for key in keys:
@@ -123,9 +155,17 @@ class TranscriptIntelligencePipeline:
                     return root.get(key)
             return None
 
+        root = analysis_payload
+        topics_value = pick("main_topics", "topics")
+        if isinstance(topics_value, dict) and any(
+            key in topics_value
+            for key in ("summary", "claims", "key_claims", "perspective", "perspectives", "sentiment", "sentiment_analysis", "bias", "rhetorical_signals", "influence")
+        ):
+            topics_value = topics_value.get("topics")
+
         return {
             "summary": pick("summary", "overall_summary"),
-            "main_topics": pick("main_topics", "topics"),
+            "main_topics": topics_value,
             "claims": pick("claims", "key_claims"),
             "perspective": pick("perspective", "perspectives"),
             "sentiment": pick("sentiment", "sentiment_analysis"),
