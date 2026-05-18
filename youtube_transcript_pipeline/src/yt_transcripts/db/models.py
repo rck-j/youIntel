@@ -98,3 +98,25 @@ class VideoAnalysis(Base):
     influence_signals_json: Mapped[dict | list | None] = mapped_column(JSON)
     confidence_score: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class VideoAnalysisTopic(Base):
+    __tablename__ = "video_analysis"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    analysis_run_id: Mapped[int] = mapped_column(ForeignKey("analysis_runs.id", ondelete="CASCADE"), nullable=False)
+    video_id: Mapped[int] = mapped_column(ForeignKey("videos.id", ondelete="CASCADE"), nullable=False)
+    topic: Mapped[str | None] = mapped_column(String(512))
+    summary: Mapped[str | None] = mapped_column(Text)
+    perspective: Mapped[str | None] = mapped_column(Text)
+    framing: Mapped[str | None] = mapped_column(Text)
+    narrative: Mapped[str | None] = mapped_column(Text)
+    rhetoric_json: Mapped[dict | list | None] = mapped_column(JSON)
+    influence: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index("ix_video_analysis_analysis_run_id", "analysis_run_id"),
+        Index("ix_video_analysis_video_id", "video_id"),
+        Index("ix_video_analysis_topic", "topic"),
+    )
