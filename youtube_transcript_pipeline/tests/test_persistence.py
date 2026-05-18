@@ -15,6 +15,7 @@ from yt_transcripts.repositories.persistence import (
     upsert_transcript,
     upsert_video,
 )
+from yt_transcripts.services.transcript_intelligence_pipeline import TranscriptIntelligencePipeline
 
 
 def make_session() -> Session:
@@ -115,3 +116,47 @@ def test_analysis_run_uniqueness_and_video_analysis_save() -> None:
     )
     assert va.summary == "sum"
     assert va.confidence_score == 0.9
+
+
+def test_video_analysis_split_columns_from_wrapped_payload() -> None:
+    session = make_session()
+    channel = upsert_channel(session, youtube_channel_id="chan2", title="C2", url="u2")
+    video = upsert_video(session, channel_id=channel.id, youtube_video_id="vid2", title="V2", url="vu2", published_at=None, duration_seconds=10, view_count=10, like_count=1, is_short=True)
+    transcript = upsert_transcript(session, video_id=video.id, source="api", language="en", raw_transcript_json={}, normalized_text="abc", segment_count=0)
+    run = create_analysis_run(session, video_id=video.id, transcript_id=transcript.id, analysis_type="topic_perspective", model_name="gpt", prompt_version="v1", prompt_text="prompt")
+
+    payload = {
+        "main_topics": {
+            "summary": "summary text",
+            "topics": [{"topic": "energy"}],
+            "key_claims": [{"claim": "c1"}],
+            "perspectives": [{"stance": "s1"}],
+            "sentiment_analysis": {"tone": "neutral"},
+            "bias": {"loaded_language": True},
+            "rhetorical_signals": [{"signal": "fear appeal"}],
+            "influence": [{"signal": "authority"}],
+            "confidence": 0.87,
+        }
+    }
+    mapped = TranscriptIntelligencePipeline._map_analysis_fields(
+        TranscriptIntelligencePipeline._normalize_analysis_payload(payload)
+    )
+    va = save_video_analysis(
+        session,
+        analysis_run_id=run.id,
+        video_id=video.id,
+        summary=mapped["summary"],
+        main_topics_json=mapped["main_topics"],
+        claims_json=mapped["claims"],
+        perspective_json=mapped["perspective"],
+        sentiment_json=mapped["sentiment"],
+        bias_signals_json=mapped["bias_signals"],
+        rhetoric_signals_json=mapped["rhetoric_signals"],
+        influence_signals_json=mapped["influence_signals"],
+        confidence_score=mapped["confidence_score"],
+    )
+
+    assert va.main_topics_json == [{"topic": "energy"}]
+    assert va.claims_json == [{"claim": "c1"}]
+    assert va.perspective_json == [{"stance": "s1"}]
+    assert va.sentiment_json == {"tone": "neutral"}
