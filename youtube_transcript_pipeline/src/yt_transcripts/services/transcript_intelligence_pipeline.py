@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from errno import EACCES, EROFS
 from pathlib import Path
@@ -14,6 +15,7 @@ from yt_transcripts.repositories.persistence import (
     create_analysis_run,
     get_existing_analysis_run,
     get_video_by_youtube_id,
+    save_video_analysis_topics,
     save_video_analysis,
 )
 from yt_transcripts.services.prompt_service import PromptService
@@ -28,6 +30,7 @@ class TranscriptIntelligencePipeline:
         self.aggregation_service = aggregation_service or TopicAggregationService()
 
     def run(self, *, input_dir: str, model: str, prompt_file: str, output_file: str | None = None, prompt_version: str = "v1", force: bool = False) -> dict:
+        logger = logging.getLogger(__name__)
         prompt_text = self.prompt_service.load_prompt(prompt_file)
         transcript_records = self._load_transcript_records(input_dir)
 
@@ -67,12 +70,18 @@ class TranscriptIntelligencePipeline:
                     "confidence_score": mapped_analysis.get("confidence_score"),
                 }
                 print(json.dumps({"saved_parsed_values": parsed_values_to_save}, ensure_ascii=False, default=str))
+                topic_rows_inserted = save_video_analysis_topics(
+                    session,
+                    analysis_run_id=parsed_values_to_save["analysis_run_id"],
+                    video_id=parsed_values_to_save["video_id"],
+                    main_topics_json=parsed_values_to_save["main_topics_json"],
+                )
                 save_video_analysis(
                     session,
                     analysis_run_id=parsed_values_to_save["analysis_run_id"],
                     video_id=parsed_values_to_save["video_id"],
                     summary=parsed_values_to_save["summary"],
-                    main_topics_json=parsed_values_to_save["main_topics_json"],
+                    main_topics_json=None,
                     claims_json=parsed_values_to_save["claims_json"],
                     perspective_json=parsed_values_to_save["perspective_json"],
                     sentiment_json=parsed_values_to_save["sentiment_json"],
@@ -80,6 +89,14 @@ class TranscriptIntelligencePipeline:
                     rhetoric_signals_json=parsed_values_to_save["rhetoric_signals_json"],
                     influence_signals_json=parsed_values_to_save["influence_signals_json"],
                     confidence_score=parsed_values_to_save["confidence_score"],
+                )
+                logger.info(
+                    "Persisted topic rows",
+                    extra={
+                        "analysis_run_id": parsed_values_to_save["analysis_run_id"],
+                        "video_id": parsed_values_to_save["video_id"],
+                        "topic_rows_inserted": topic_rows_inserted,
+                    },
                 )
                 session.commit()
                 analysis_rows.append({"video_id": record.get("video_id"), "channel_id": record.get("channel_id"), "channel_title": record.get("channel_title"), "analysis": analysis_payload})

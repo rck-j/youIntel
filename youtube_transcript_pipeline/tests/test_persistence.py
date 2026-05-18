@@ -5,12 +5,13 @@ from datetime import datetime
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from yt_transcripts.db.models import AnalysisRun, Base, Channel, Transcript, Video, VideoAnalysis
+from yt_transcripts.db.models import AnalysisRun, Base, Channel, Transcript, Video, VideoAnalysis, VideoAnalysisTopic
 from yt_transcripts.repositories.persistence import (
     complete_analysis_run,
     create_analysis_run,
     get_existing_analysis_run,
     save_video_analysis,
+    save_video_analysis_topics,
     upsert_channel,
     upsert_transcript,
     upsert_video,
@@ -160,3 +161,61 @@ def test_video_analysis_split_columns_from_wrapped_payload() -> None:
     assert va.claims_json == [{"claim": "c1"}]
     assert va.perspective_json == [{"stance": "s1"}]
     assert va.sentiment_json == {"tone": "neutral"}
+
+
+def test_save_video_analysis_topics_inserts_multiple_rows() -> None:
+    session = make_session()
+    inserted = save_video_analysis_topics(
+        session,
+        analysis_run_id=33,
+        video_id=77,
+        main_topics_json=[
+            {
+                "topic": "Defense Leadership",
+                "summary": "s1",
+                "perspective": "p1",
+                "analysis": {"framing": "f1", "narrative": "n1", "rhetoric": ["r1"], "influence": "i1"},
+            },
+            {
+                "topic": "Civil-Military Relations",
+                "summary": "s2",
+                "perspective": "p2",
+                "analysis": {"framing": "f2", "narrative": "n2", "rhetoric": ["r2"], "influence": "i2"},
+            },
+        ],
+    )
+    assert inserted == 2
+    rows = session.scalars(select(VideoAnalysisTopic).where(VideoAnalysisTopic.analysis_run_id == 33, VideoAnalysisTopic.video_id == 77)).all()
+    assert len(rows) == 2
+    assert {row.topic for row in rows} == {"Defense Leadership", "Civil-Military Relations"}
+
+
+def test_save_video_analysis_topics_handles_empty_or_missing_list() -> None:
+    session = make_session()
+    assert save_video_analysis_topics(session, analysis_run_id=1, video_id=2, main_topics_json=None) == 0
+    assert save_video_analysis_topics(session, analysis_run_id=1, video_id=2, main_topics_json={"topic": "x"}) == 0
+    rows = session.scalars(select(VideoAnalysisTopic)).all()
+    assert rows == []
+
+
+def test_save_video_analysis_topics_is_idempotent_per_run_and_video() -> None:
+    session = make_session()
+    first_insert = save_video_analysis_topics(
+        session,
+        analysis_run_id=9,
+        video_id=99,
+        main_topics_json=[{"topic": "A", "summary": "s", "perspective": "p", "analysis": {}}],
+    )
+    second_insert = save_video_analysis_topics(
+        session,
+        analysis_run_id=9,
+        video_id=99,
+        main_topics_json=[
+            {"topic": "A", "summary": "s-new", "perspective": "p-new", "analysis": {}},
+            {"topic": "B", "summary": "s2", "perspective": "p2", "analysis": {}},
+        ],
+    )
+    assert first_insert == 1
+    assert second_insert == 2
+    rows = session.scalars(select(VideoAnalysisTopic).where(VideoAnalysisTopic.analysis_run_id == 9, VideoAnalysisTopic.video_id == 99)).all()
+    assert len(rows) == 2
