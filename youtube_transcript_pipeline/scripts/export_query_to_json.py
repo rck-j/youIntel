@@ -23,17 +23,8 @@ from yt_transcripts.db.session import _normalized_database_url, get_engine
 # Edit this SQL as needed. Keep it as a read-only SELECT/WITH query because the
 # utility exports rows and does not manage data mutations.
 QUERY = """
-SELECT
-    id,
-    youtube_video_id,
-    title,
-    url,
-    published_at,
-    view_count,
-    like_count
-FROM videos
-ORDER BY published_at DESC
-LIMIT 100
+SELECT topic, video_id, summary
+FROM video_analysis;
 """
 
 
