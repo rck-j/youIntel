@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from yt_transcripts.db.models import AnalysisRun, Channel, Transcript, Video, VideoAnalysis
+from yt_transcripts.db.models import AnalysisRun, Channel, Transcript, Video, VideoAnalysis, VideoAnalysisTopic
 
 
 def upsert_channel(session: Session, *, youtube_channel_id: str, title: str, url: str, subscriber_count: int | None = None) -> Channel:
@@ -130,3 +130,43 @@ def save_video_analysis(session: Session, *, analysis_run_id: int, video_id: int
 def list_videos_missing_analysis(session: Session) -> list[Video]:
     stmt = select(Video).where(~Video.id.in_(select(VideoAnalysis.video_id)))
     return list(session.scalars(stmt).all())
+
+
+def save_video_analysis_topics(
+    session: Session,
+    *,
+    analysis_run_id: int,
+    video_id: int,
+    main_topics_json: dict | list | None,
+) -> int:
+    session.query(VideoAnalysisTopic).filter(
+        VideoAnalysisTopic.analysis_run_id == analysis_run_id,
+        VideoAnalysisTopic.video_id == video_id,
+    ).delete()
+
+    if not isinstance(main_topics_json, list):
+        return 0
+
+    rows: list[VideoAnalysisTopic] = []
+    for topic_payload in main_topics_json:
+        if not isinstance(topic_payload, dict):
+            continue
+        analysis = topic_payload.get("analysis") if isinstance(topic_payload.get("analysis"), dict) else {}
+        rows.append(
+            VideoAnalysisTopic(
+                analysis_run_id=analysis_run_id,
+                video_id=video_id,
+                topic=topic_payload.get("topic"),
+                summary=topic_payload.get("summary"),
+                perspective=topic_payload.get("perspective"),
+                framing=analysis.get("framing"),
+                narrative=analysis.get("narrative"),
+                rhetoric_json=analysis.get("rhetoric"),
+                influence=analysis.get("influence"),
+            )
+        )
+
+    if rows:
+        session.add_all(rows)
+        session.flush()
+    return len(rows)
