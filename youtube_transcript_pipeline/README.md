@@ -165,3 +165,16 @@ WHERE v.youtube_video_id = 'VIDEO_ID_HERE';
 ### Channel and video metric tracking
 
 The pipeline stores channel subscriber counts (`channels.subscriber_count`) and per-video engagement metrics (`videos.view_count`, `videos.like_count`) on each run.
+
+## Analyze database query results with OpenAI
+
+Edit the `QUERY` constant in `scripts/analyze_query_results_with_openai.py` to define the read-only `SELECT`/`WITH` query to run against `DATABASE_URL`. Customize the prompt in `prompts/query_results_analysis_prompt.txt`, then run:
+
+```bash
+PYTHONPATH=src python scripts/analyze_query_results_with_openai.py \
+  --model gpt-5 \
+  --prompt-file prompts/query_results_analysis_prompt.txt \
+  --output outputs/query_results_analysis.json
+```
+
+The utility writes a JSON artifact containing the model name, prompt file, executed query, returned row count, and OpenAI analysis text. The script rejects mutation queries so it can be used safely as a read-only reporting helper.
