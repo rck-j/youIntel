@@ -124,6 +124,41 @@ This command:
 - Detects topics and per-topic channel perspectives
 - Aggregates topics across channels and attributes which channels supplied each perspective
 
+
+## Reprocess saved transcripts with an extraction prompt
+
+Use `scripts/reprocess_transcripts_with_prompt.py` to test and compare extraction prompts against saved transcript results without fetching videos again or writing analysis rows to the database. The utility reads transcript result files from a directory, sends each transcript to OpenAI with the supplied prompt, and writes a JSON comparison artifact containing the raw extraction, normalized extraction, mapped analysis fields, skipped records, and per-record errors.
+
+The input directory can contain pipeline-style `.json` files such as files written by `batch` or `batch-from-config`, plus `.jsonl` files with one transcript object per line. Records without transcript text or records marked as unavailable are skipped.
+
+Run with a prompt file from `prompts/`:
+
+```bash
+PYTHONPATH=src python scripts/reprocess_transcripts_with_prompt.py \
+  --input-dir outputs \
+  --prompt-file topic_perspective_prompt.txt \
+  --model gpt-5 \
+  --output outputs/topic_prompt_v1_results.json
+```
+
+Run with one-off prompt text:
+
+```bash
+PYTHONPATH=src python scripts/reprocess_transcripts_with_prompt.py \
+  --input-dir outputs \
+  --prompt-text "Extract a concise summary, key claims, topics, and confidence as JSON." \
+  --model gpt-5 \
+  --output outputs/experimental_prompt_results.json
+```
+
+Useful options:
+
+- `--recursive` searches nested folders for `.json` and `.jsonl` transcript files.
+- `--max-records 5` limits processing for quick prompt smoke tests.
+- `--output` should be changed for each prompt variant so the JSON artifacts can be compared side by side.
+
+The command prints a compact status summary and writes the full artifact to the selected output path. Set `OPENAI_API_KEY` before running.
+
 ## Database setup and usage
 
 Set `DATABASE_URL` in `.env` (Postgres example: `postgresql+psycopg://user:pass@localhost:5432/ytintel`).
