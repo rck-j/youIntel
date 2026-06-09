@@ -212,4 +212,14 @@ PYTHONPATH=src python scripts/analyze_query_results_with_openai.py \
   --output outputs/query_results_analysis.json
 ```
 
-The utility writes a JSON artifact containing the model name, prompt file, executed query, returned row count, and OpenAI analysis text. The script rejects mutation queries so it can be used safely as a read-only reporting helper.
+Optionally pass one or more `--input-file` values to upload local files to OpenAI with `purpose=user_data` and attach them to the same Responses API request for model processing:
+
+```bash
+PYTHONPATH=src python scripts/analyze_query_results_with_openai.py \
+  --model gpt-5 \
+  --input-file data/context.pdf \
+  --input-file outputs/prior_analysis.json \
+  --output outputs/query_results_analysis.json
+```
+
+The utility writes a JSON artifact containing the model name, prompt file, executed query, returned row count, optional uploaded file metadata, and OpenAI analysis text. The script rejects mutation queries so it can be used safely as a read-only reporting helper.
