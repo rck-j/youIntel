@@ -128,7 +128,6 @@ def test_build_user_content_attaches_uploaded_files() -> None:
     assert content[1] == {
         "type": "input_file",
         "file_id": "file-test123",
-        "filename": "input.json",
     }
 
 
@@ -148,7 +147,6 @@ def test_analyze_query_results_sends_uploaded_files_to_openai() -> None:
     assert user_content[1] == {
         "type": "input_file",
         "file_id": "file-test123",
-        "filename": "input.json",
     }
 
 

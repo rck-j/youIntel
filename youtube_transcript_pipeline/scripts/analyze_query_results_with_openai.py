@@ -163,7 +163,6 @@ def build_user_content(
         {
             "type": "input_file",
             "file_id": uploaded_file["file_id"],
-            "filename": uploaded_file["filename"],
         }
         for uploaded_file in uploaded_files
     )
